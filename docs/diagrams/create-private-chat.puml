@@ -1,0 +1,46 @@
+
+@startuml create-private-chat
+title Создание личного чата
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+autonumber
+
+actor "Пользователь" as User
+participant "Frontend" as Client
+participant "Backend" as Server
+database "PostgreSQL" as DB
+
+User -> Client : Выбирает пользователя для общения
+Client -> Server : Проверить наличие личного чата
+Server -> DB : Найти чат между пользователями
+DB --> Server : Результат поиска
+
+alt Чат уже существует
+    Server --> Client : ID существующего чата
+    Client --> User : Открыть существующий чат
+else Чат не найден
+    Server --> Client : Чат отсутствует
+    Client -> Server : Запрос на создание личного чата
+    Server -> DB : Создать чат и добавить участников
+
+    alt Чат создан
+        DB --> Server : ID нового чата
+        Server --> Client : Данные нового чата
+        Client --> User : Открыть новый чат
+    else Чат создан параллельно
+        DB --> Server : Ошибка уникальности
+        Server -> DB : Найти созданный чат
+        DB --> Server : ID существующего чата
+        Server --> Client : Данные существующего чата
+        Client --> User : Открыть существующий чат
+    end
+end
+
+note over Server, DB
+  Между двумя пользователями
+  может существовать только один
+  личный чат.
+end note
+
+@enduml

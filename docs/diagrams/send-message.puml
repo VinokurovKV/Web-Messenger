@@ -1,0 +1,41 @@
+
+@startuml send-message
+title Отправка сообщения
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+autonumber
+
+actor "Отправитель" as User
+participant "Клиент отправителя\n(Frontend)" as Client
+participant "Сервер\n(Backend / WebSocket)" as Server
+database "База данных\n(PostgreSQL)" as DB
+participant "Клиент другого\nучастника" as Recipient
+
+User -> Client : Вводит текст и отправляет сообщение
+Client -> Server : send_message(chatId, clientMessageId, text)
+Server -> DB : Проверить доступ отправителя к чату
+DB --> Server : Результат проверки
+
+alt Нет доступа к чату
+    Server --> Client : message_error (access_denied)
+    Client --> User : Показать ошибку
+else Доступ есть
+    Server -> DB : Сохранить сообщение\n(или найти существующее по clientMessageId)
+    DB --> Server : messageId, createdAt
+    Server --> Client : message_saved (messageId, clientMessageId)
+    Client --> User : Показать статус «Доставлено на сервер»
+
+    loop Для каждого другого участника чата
+        alt Участник подключён
+            Server -> Recipient : new_message (сообщение)
+        else Участник не в сети
+            note over Server, Recipient
+              Сообщение уже сохранено в БД.
+              История загрузится при входе в чат.
+            end note
+        end
+    end
+end
+
+@enduml

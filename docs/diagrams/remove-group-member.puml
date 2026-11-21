@@ -1,0 +1,50 @@
+
+@startuml remove-group-member
+title Исключение участника из группы
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+autonumber
+
+actor "Администратор группы" as Admin
+participant "Frontend администратора" as Client
+participant "Backend" as Server
+database "PostgreSQL" as DB
+participant "Frontend участника" as Member
+
+Admin -> Client : Выбирает участника для исключения
+Admin -> Client : Подтверждает исключение
+Client -> Server : Запрос на исключение участника
+
+Server -> DB : Проверить права администратора\nи участие пользователя
+DB --> Server : Результат проверки
+
+alt Нет прав администратора
+    Server --> Client : Ошибка доступа
+    Client --> Admin : Показать ошибку
+
+else Пользователь не найден в группе
+    Server --> Client : Участник не найден
+    Client --> Admin : Показать ошибку
+
+else Проверка пройдена
+    Server -> DB : Установить left_at участника
+    DB --> Server : Изменения сохранены
+
+    Server --> Client : Участник исключён
+    Client --> Admin : Обновить список участников
+
+    opt Исключённый участник в сети
+        Server -> Member : member_removed (chatId)
+        Member -> Member : Удалить чат из списка
+        Member -> Member : Закрыть открытую переписку
+    end
+
+    note over Server, DB
+      История сообщений сохраняется.
+      Исключённый участник больше
+      не имеет к ней доступа.
+    end note
+end
+
+@enduml
