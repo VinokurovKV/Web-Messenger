@@ -1,0 +1,59 @@
+
+@startuml use-case
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+actor "Гость" as Guest
+actor "Пользователь" as User
+actor "Администратор\nгруппы" as Admin
+
+Admin --|> User
+
+rectangle "Веб-мессенджер" {
+  package "Аккаунт" {
+    usecase "Зарегистрироваться" as UC_Register
+    usecase "Войти в аккаунт" as UC_Login
+  }
+
+  package "Чаты" {
+    usecase "Посмотреть список чатов" as UC_ListChats
+    usecase "Начать личный чат" as UC_PersonalChat
+    usecase "Создать групповой чат" as UC_GroupChat
+    usecase "Выйти из группы" as UC_LeaveGroup
+    usecase "Добавить участника" as UC_AddMember
+    usecase "Исключить участника" as UC_RemoveMember
+  }
+
+  package "Сообщения" {
+    usecase "Отправить сообщение" as UC_Send
+    usecase "Просмотреть историю" as UC_History
+    usecase "Найти сообщение в чате" as UC_Search
+  }
+
+  package "Уведомления" {
+    usecase "Получать уведомления" as UC_Notifications
+    usecase "Посмотреть счётчики\nнепросмотренных сообщений" as UC_Unread
+    usecase "Отключить уведомления\nдля чата" as UC_Mute
+  }
+}
+
+Guest --> UC_Register
+Guest --> UC_Login
+
+User --> UC_ListChats
+User --> UC_PersonalChat
+User --> UC_GroupChat
+User --> UC_LeaveGroup
+User --> UC_Send
+User --> UC_History
+User --> UC_Search
+User --> UC_Notifications
+User --> UC_Unread
+User --> UC_Mute
+
+Admin --> UC_AddMember
+Admin --> UC_RemoveMember
+
+@enduml
