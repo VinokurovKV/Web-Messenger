@@ -1,0 +1,80 @@
+
+@startuml er-diagram
+title ER-диаграмма веб-мессенджера
+
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+
+entity "Пользователи\n(users)" as users {
+  * id : UUID <<PK>>
+  --
+  * username : VARCHAR
+  * password_hash : VARCHAR
+  * created_at : TIMESTAMPTZ
+}
+
+entity "Чаты\n(chats)" as chats {
+  * id : UUID <<PK>>
+  --
+  * type : PRIVATE / GROUP
+  title : VARCHAR
+  * created_by : UUID <<FK>>
+  private_pair_key : TEXT
+  * created_at : TIMESTAMPTZ
+}
+
+entity "Участники чатов\n(chat_memberships)" as memberships {
+  * id : UUID <<PK>>
+  --
+  * chat_id : UUID <<FK>>
+  * user_id : UUID <<FK>>
+  * role : ADMIN / MEMBER
+  * joined_at : TIMESTAMPTZ
+  left_at : TIMESTAMPTZ
+  * notifications_muted : BOOLEAN
+  last_read_message_id : BIGINT
+}
+
+entity "Сообщения\n(messages)" as messages {
+  * id : BIGINT <<PK>>
+  --
+  * chat_id : UUID <<FK>>
+  * sender_id : UUID <<FK>>
+  * client_message_id : UUID
+  * text : TEXT
+  * created_at : TIMESTAMPTZ
+}
+
+users ||--o{ chats : "создаёт"
+users ||--o{ memberships : "участвует"
+chats ||--o{ memberships : "содержит"
+users ||--o{ messages : "отправляет"
+chats ||--o{ messages : "содержит"
+messages |o..o{ memberships : "последнее просмотренное"
+
+note bottom of memberships
+  При повторном вступлении в группу
+  создаётся новая запись.
+
+  Пользователь видит сообщения только
+  с момента последнего вступления.
+end note
+
+note bottom of chats
+  PRIVATE — личный чат.
+  GROUP — групповой чат.
+
+  private_pair_key — уникальный ключ
+  пары пользователей для личного чата.
+end note
+
+legend bottom
+  PK — первичный ключ
+  FK — внешний ключ
+  * — обязательное поле
+endlegend
+
+@enduml

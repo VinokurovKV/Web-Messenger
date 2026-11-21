@@ -16,6 +16,9 @@
 - [Исходный текст задания VK Education](docs/TASK.md)
 - [Спецификация требований к ПО](docs/SRS.md)
 
+## ER-диаграмма
+
+![ER-диаграмма](docs/diagrams/er-diagram.svg)
 
 ## Статус проекта
 
