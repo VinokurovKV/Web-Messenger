@@ -1,0 +1,85 @@
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  createdChats Chat[]           @relation("CreatedChats")
+  memberships  ChatMembership[]
+  messages     Message[]
+
+  @@map("users")
+}
+
+model Chat {
+  id             String   @id @default(uuid()) @db.Uuid
+  type           ChatType
+  title          String?
+  createdById    String   @map("created_by") @db.Uuid
+  privatePairKey String?  @unique @map("private_pair_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  createdBy   User             @relation("CreatedChats", fields: [createdById], references: [id])
+  memberships ChatMembership[]
+  messages    Message[]
+
+  @@map("chats")
+}
+
+model ChatMembership {
+  id                  String     @id @default(uuid()) @db.Uuid
+  chatId              String     @map("chat_id") @db.Uuid
+  userId              String     @map("user_id") @db.Uuid
+  role                MemberRole @default(MEMBER)
+  joinedAt            DateTime   @default(now()) @map("joined_at")
+  leftAt              DateTime?  @map("left_at")
+  notificationsMuted  Boolean    @default(false) @map("notifications_muted")
+  lastReadMessageId   BigInt?    @map("last_read_message_id")
+
+  chat            Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id])
+  lastReadMessage Message? @relation("LastReadMessage", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
+
+  @@unique([chatId, userId], where: { leftAt: null })
+  @@index([userId])
+  @@map("chat_memberships")
+}
+
+model Message {
+  id              BigInt   @id @default(autoincrement())
+  chatId          String   @map("chat_id") @db.Uuid
+  senderId        String   @map("sender_id") @db.Uuid
+  clientMessageId String   @map("client_message_id") @db.Uuid
+  text            String
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id])
+
+  readBy ChatMembership[] @relation("LastReadMessage")
+
+  @@unique([senderId, clientMessageId])
+  @@index([chatId, id])
+  @@map("messages")
+}

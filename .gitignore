@@ -38,3 +38,6 @@ temp/
 
 # Local uploads
 uploads/
+
+# Generated Prisma Client
+backend/src/generated/prisma/
