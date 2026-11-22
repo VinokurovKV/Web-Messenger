@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: API веб-мессенджера
-  version: 1.0.0
-  description: Первая часть REST API — авторизация и поиск пользователей.
+  version: 1.1.0
+  description: Авторизация, поиск пользователей и работа с чатами.
 
 servers:
   - url: /api
@@ -85,7 +85,227 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /chats:
+    get:
+      tags: [Чаты]
+      summary: Получить список своих чатов
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Чаты, к которым есть доступ у пользователя
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Chat"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /chats/private:
+    post:
+      tags: [Чаты]
+      summary: Открыть или создать личный чат
+      description: Если чат между пользователями уже существует, возвращается он. Второй такой чат не создаётся.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePrivateChatRequest"
+      responses:
+        "200":
+          description: Личный чат уже существовал
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+        "201":
+          description: Новый личный чат создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /chats/group:
+    post:
+      tags: [Чаты]
+      summary: Создать групповой чат
+      description: Создатель группы автоматически становится её администратором.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupChatRequest"
+      responses:
+        "201":
+          description: Группа создана
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /chats/{id}/members:
+    parameters:
+      - $ref: "#/components/parameters/ChatId"
+    get:
+      tags: [Чаты]
+      summary: Получить участников чата
+      description: Нужен для просмотра участников группы и управления ими.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Текущие участники чата
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Чаты]
+      summary: Добавить участника в группу
+      description: Доступно только администратору. При повторном приглашении пользователь видит сообщения только с нового вступления.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddChatMemberRequest"
+      responses:
+        "201":
+          description: Участник добавлен
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /chats/{id}/members/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/ChatId"
+      - name: userId
+        in: path
+        required: true
+        description: ID исключаемого участника
+        schema:
+          type: string
+          format: uuid
+    delete:
+      tags: [Чаты]
+      summary: Исключить участника из группы
+      description: Только администратор может исключать участников, кроме себя. Сам администратор выходит через /chats/{id}/leave.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Участник исключён и больше не имеет доступа к переписке
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /chats/{id}/leave:
+    parameters:
+      - $ref: "#/components/parameters/ChatId"
+    post:
+      tags: [Чаты]
+      summary: Выйти из группового чата
+      description: Если выходит администратор, его права переходят первому приглашённому из оставшихся. Если участник последний, группа удаляется.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Пользователь вышел из группы
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /chats/{id}/notifications:
+    parameters:
+      - $ref: "#/components/parameters/ChatId"
+    patch:
+      tags: [Чаты]
+      summary: Включить или отключить уведомления чата
+      description: Отключение всплывающих уведомлений не влияет на счётчик непросмотренных сообщений.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSettings"
+      responses:
+        "200":
+          description: Настройки сохранены
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
+  parameters:
+    ChatId:
+      name: id
+      in: path
+      required: true
+      description: ID чата
+      schema:
+        type: string
+        format: uuid
+
   securitySchemes:
     bearerAuth:
       type: http
@@ -128,6 +348,84 @@ components:
           type: string
           example: Bearer
 
+    Chat:
+      type: object
+      required: [id, type, createdAt, myRole, unreadCount, notificationsMuted]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [PRIVATE, GROUP]
+        title:
+          type: string
+          nullable: true
+          description: Название группы; для личного чата — null
+        otherUser:
+          $ref: "#/components/schemas/User"
+        createdAt:
+          type: string
+          format: date-time
+        myRole:
+          type: string
+          enum: [ADMIN, MEMBER]
+          description: Роль текущего пользователя в чате
+        unreadCount:
+          type: integer
+          minimum: 0
+        notificationsMuted:
+          type: boolean
+
+    CreatePrivateChatRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: ID собеседника
+
+    CreateGroupChatRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Название группы
+          example: Учебная группа
+
+    AddChatMemberRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          format: uuid
+
+    ChatMember:
+      type: object
+      required: [user, role, joinedAt]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        role:
+          type: string
+          enum: [ADMIN, MEMBER]
+        joinedAt:
+          type: string
+          format: date-time
+
+    NotificationSettings:
+      type: object
+      required: [muted]
+      properties:
+        muted:
+          type: boolean
+          description: Отключены ли всплывающие уведомления
+          example: true
+
     ApiError:
       type: object
       required: [code, message]
@@ -148,6 +446,24 @@ components:
             $ref: "#/components/schemas/ApiError"
     Unauthorized:
       description: Пользователь не авторизован или неверные данные для входа
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Пользователь или чат не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Conflict:
+      description: Пользователь уже состоит в группе
       content:
         application/json:
           schema:
