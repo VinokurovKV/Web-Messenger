@@ -1,0 +1,47 @@
+
+@startuml architecture
+title Архитектура веб-мессенджера
+
+left to right direction
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam defaultFontName Arial
+skinparam linetype ortho
+
+actor "Пользователь" as User
+
+node "Браузер" {
+    component "Frontend\nReact + TypeScript" as Frontend
+}
+
+node "Backend\nNestJS" {
+    component "REST API" as REST
+    component "WebSocket Gateway" as WS
+
+    component "Модули приложения\nAuth / Users / Chats /\nMessages / Notifications" as Services
+
+    component "Prisma ORM" as Prisma
+}
+
+database "PostgreSQL" as DB
+
+User --> Frontend
+
+Frontend --> REST : HTTPS / JSON
+Frontend --> WS : WebSocket (WSS)
+
+REST --> Services
+WS --> Services
+
+Services --> Prisma
+Prisma --> DB : SQL
+
+note bottom of Services
+  Вся серверная логика находится
+  в одном приложении.
+
+  Проверка авторизации и прав
+  выполняется на сервере.
+end note
+
+@enduml
