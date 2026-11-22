@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: API веб-мессенджера
-  version: 1.1.0
-  description: Авторизация, поиск пользователей и работа с чатами.
+  version: 1.2.0
+  description: Авторизация, пользователи, чаты, история сообщений и поиск.
 
 servers:
   - url: /api
@@ -295,6 +295,77 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /chats/{id}/messages:
+    parameters:
+      - $ref: "#/components/parameters/ChatId"
+    get:
+      tags: [Сообщения]
+      summary: Получить историю сообщений
+      description: |
+        Возвращает последние сообщения чата, начиная с самых новых.
+        Для загрузки более старых сообщений передайте before из nextCursor
+        предыдущего ответа. Доступна только разрешённая пользователю история.
+        Если пользователь повторно вступил в группу, старые сообщения недоступны.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MessageLimit"
+        - $ref: "#/components/parameters/MessageBefore"
+      responses:
+        "200":
+          description: Страница истории сообщений
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagePage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /chats/{id}/messages/search:
+    parameters:
+      - $ref: "#/components/parameters/ChatId"
+    get:
+      tags: [Сообщения]
+      summary: Найти сообщения в чате
+      description: |
+        Поиск по тексту без учёта регистра. Поиск выполняется только
+        среди сообщений, доступных текущему пользователю.
+        Результаты отсортированы от новых к старым.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Текст для поиска
+          schema:
+            type: string
+            minLength: 1
+          example: привет
+        - $ref: "#/components/parameters/MessageLimit"
+        - $ref: "#/components/parameters/MessageBefore"
+      responses:
+        "200":
+          description: Найденные сообщения
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagePage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   parameters:
     ChatId:
@@ -305,6 +376,29 @@ components:
       schema:
         type: string
         format: uuid
+
+    MessageLimit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное число сообщений в ответе
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 30
+
+    MessageBefore:
+      name: before
+      in: query
+      required: false
+      description: |
+        ID сообщения, перед которым загружаются более старые.
+        Передаётся значение nextCursor из предыдущего ответа.
+      schema:
+        type: string
+        pattern: "^[0-9]+$"
+      example: "150"
 
   securitySchemes:
     bearerAuth:
@@ -425,6 +519,48 @@ components:
           type: boolean
           description: Отключены ли всплывающие уведомления
           example: true
+
+    Message:
+      type: object
+      required: [id, chatId, senderId, text, createdAt]
+      properties:
+        id:
+          type: string
+          description: ID сообщения (BIGINT передаётся строкой)
+          example: "152"
+        chatId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        text:
+          type: string
+          example: Привет!
+        createdAt:
+          type: string
+          format: date-time
+
+    MessagePage:
+      type: object
+      required: [messages, hasMore, nextCursor]
+      description: |
+        Сообщения идут от новых к старым. Если hasMore = true,
+        передайте nextCursor в параметре before для следующей страницы.
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        hasMore:
+          type: boolean
+          description: Есть ли ещё более старые сообщения
+          example: true
+        nextCursor:
+          type: string
+          nullable: true
+          description: ID последнего сообщения на странице или null, если больше нечего загружать
+          example: "121"
 
     ApiError:
       type: object
